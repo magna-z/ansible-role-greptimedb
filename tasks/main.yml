@@ -1,0 +1,133 @@
+---
+- name: Ensure group
+  ansible.builtin.group:
+    name: greptimedb
+    system: true
+  register: _greptimedb_group
+
+- name: Ensure user
+  ansible.builtin.user:
+    name: greptimedb
+    group: greptimedb
+    shell: /sbin/nologin
+    home: /var/lib/greptimedb
+    create_home: false
+    system: true
+  register: _greptimedb_user
+
+- name: Ensure work directories
+  ansible.builtin.file:
+    state: directory
+    path: "{{ item }}"
+    owner: "{{ _greptimedb_user.uid }}"
+    group: "{{ _greptimedb_group.gid }}"
+    mode: "0750"
+  loop: [/etc/greptimedb, /var/lib/greptimedb, /var/lib/greptimedb/logs]
+
+- name: Ensure main config
+  notify: Restart service greptimedb
+  ansible.builtin.copy:
+    dest: /etc/greptimedb/config.toml
+    content: "{{ greptimedb_config }}"
+    owner: "{{ _greptimedb_user.uid }}"
+    group: "{{ _greptimedb_group.gid }}"
+    mode: "0640"
+
+- name: Ensure extra files
+  notify: Restart service greptimedb
+  block:
+    - name: Find current files
+      ansible.builtin.find:
+        paths: /etc/greptimedb
+        patterns: ["*"]
+        excludes: ["config.toml"]
+      register: _greptimedb_files
+
+    - name: Remove current files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ _greptimedb_files.files }}"
+
+    - name: Ensure extra config files
+      ansible.builtin.copy:
+        dest: "/etc/greptimedb/{{ item.filename }}"
+        content: "{{ item.content }}"
+        owner: "{{ _greptimedb_user.uid }}"
+        group: "{{ _greptimedb_group.gid }}"
+        mode: "0640"
+      loop: "{{ greptimedb_additional_files }}"
+
+- name: Ensure systemd greptimedb.service
+  notify: Restart service greptimedb
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/greptimedb.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Requires=docker.service
+      After=docker.service
+      StartLimitIntervalSec=0
+      [Service]
+      ExecStartPre=-/usr/bin/docker rm --force %N
+      ExecStart=/usr/bin/docker run \
+        --name=%N \
+        --rm=true \
+        --pid=host \
+        --log-driver=none \
+        --stop-timeout=300 \
+        --user={{ _greptimedb_user.uid }}:{{ _greptimedb_group.gid }} \
+        --network={{ greptimedb_docker_network }} \
+      {% if greptimedb_docker_network != 'host' %}{% for publish in greptimedb_docker_publish_ports %}
+        --publish={{ publish }} \
+      {% endfor %}{% endif %}
+      {% if greptimedb_docker_labels | length > 0 %}{% for key, value in greptimedb_docker_labels.items() %}
+        --label={{ key }}="{{ value }}" \
+      {% endfor %}{% endif %}
+        --volume=/etc/localtime:/etc/localtime:ro \
+        --volume=/etc/timezone:/etc/timezone:ro \
+        --volume=/etc/greptimedb:/etc/greptimedb:ro \
+        --volume=/var/lib/greptimedb:/var/lib/greptimedb:rw \
+        --volume=/etc/ssl/certs:/etc/ssl/certs:ro \
+        --volume=/usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro \
+        --workdir=/var/lib/greptimedb \
+        --entrypoint=greptime \
+        {{ greptimedb_docker_image }} {{ greptimedb_mode }} start \
+          --config-file=/etc/greptimedb/config.toml \
+          --http-addr={{ greptimedb_http_addr }} \
+          --rpc-bind-addr={{ greptimedb_grpc_addr }} \
+          --log-dir=/var/lib/greptimedb/logs \
+          --log-level={{ greptimedb_log_level }}
+      ExecStop=/usr/bin/docker stop %N
+      Restart=always
+      RestartSec=10
+      KillMode=process
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Execute handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start service greptimedb
+  ansible.builtin.systemd_service:
+    name: greptimedb
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Wait greptimedb
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ greptimedb_http_addr | split(':') | last }}"
+    timeout: 60
+  retries: 5
+
+- name: Healthcheck greptimedb
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ greptimedb_http_addr | split(':') | last }}/health"
+  register: _greptimedb_health
+  until: _greptimedb_health.status == 200
+  delay: 10
+  retries: 5

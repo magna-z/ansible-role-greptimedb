@@ -1,0 +1,14 @@
+---
+greptimedb_docker_image: greptime/greptimedb:v0.13.2
+
+greptimedb_docker_network: bridge
+greptimedb_docker_publish_ports: []
+
+greptimedb_docker_labels: {}
+
+greptimedb_additional_files: []
+
+greptimedb_http_addr: 0.0.0.0:4000
+greptimedb_grpc_addr: 0.0.0.0:4001
+
+greptimedb_log_level: info

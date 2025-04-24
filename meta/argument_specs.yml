@@ -1,0 +1,77 @@
+# https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html#role-argument-validation
+---
+argument_specs:
+  main:
+    short_description: "Configure and run greptimedb as Docker container in systemd.service."
+    description:
+      - ""
+    options:
+      greptimedb_docker_image:
+        description:
+          - "Docker image for using into systemd.service."
+        type: str
+        default: ...:latest
+      greptimedb_docker_network:
+        description:
+          - "Connect a container to a network as `docker run --network=...`."
+        type: str
+        default: bridge
+      greptimedb_docker_publish_ports:
+        description:
+          - "List of strings with publish a container’s ports to the host as `docker run --publish=...`."
+        type: list
+        elements: str
+      greptimedb_docker_labels:
+        description:
+          - "Dictionary in format `{key: value}` for set meta data on a container as `docker run --label=...`."
+        type: dict
+      greptimedb_mode:
+        description:
+          - "The option which specify the running mode of the component."
+        type: str
+        required: true
+        choices: [standalone, frontend, datanode, flownode, metasrv]
+      greptimedb_config:
+        description:
+          - "Multiline string with content for main configuration file placed in `/etc/greptimedb/`."
+        type: str
+        required: true
+      greptimedb_additional_files:
+        description:
+          - "List of objects in format `{filename: ..., content: ...}`:"
+          - "`filename` - name of file in `/etc/greptimedb/`."
+          - "`content` - multiline string with file content."
+        type: list
+        elements: dict
+        options:
+          filename:
+            description:
+              - "Name of file in `/etc/greptimedb/`."
+            type: str
+            required: true
+          content:
+            description:
+              - "Multiline string with file content."
+            type: str
+            required: true
+      greptimedb_http_addr:
+        description:
+          - "The address to bind the HTTP API server."
+          - "`--http-addr <HTTP_ADDR>`"
+        type: str
+        default: 0.0.0.0:4000
+      greptimedb_grpc_addr:
+        description:
+          - "The address to bind the gRPC server."
+          - "`--rpc-bind-addr <RPC_BIND_ADDR>`"
+        type: str
+        default: 0.0.0.0:4001
+      greptimedb_log_level:
+        description:
+          - "Output log level."
+          - "`--log-level <LOG_LEVEL>`"
+        type: str
+        default: info
+        choices: [error, warn, info, debug]
+  purge:
+    short_description: "Stop and disable service greptimedb and purge all files and directories."

@@ -1,0 +1,10 @@
+---
+dependencies: []
+galaxy_info:
+  min_ansible_version: "2.11"
+  description: Configure and run GreptimeDB as Docker container in systemd.service.
+  author: Maxim Zalysin
+  license: MIT
+  platforms:
+    - name: GenericLinux
+      version: [any]

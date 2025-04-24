@@ -1,0 +1,13 @@
+---
+- name: Stop and disable service greptimedb
+  ansible.builtin.systemd_service:
+    name: greptimedb
+    enabled: false
+    state: stopped
+  ignore_errors: true
+
+- name: Purge all files and directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/systemd/system/greptimedb.service, /etc/greptimedb, /var/lib/greptimedb]
