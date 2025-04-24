@@ -66,3 +66,7 @@ greptimedb_config: |
   provider = "raft_engine"
   dir = "./wal"
 ```
+
+
+### Acknowledgement
+- Ansible role uses [GreptimeDB](https://greptime.com) artifacts as main dependency.
