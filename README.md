@@ -68,5 +68,5 @@ greptimedb_config: |
 ```
 
 
-### Acknowledgement
+### Acknowledgements
 - Ansible role uses [GreptimeDB](https://greptime.com) artifacts as main dependency.

@@ -1,5 +1,5 @@
 ---
-greptimedb_docker_image: greptime/greptimedb:v0.13.2
+greptimedb_docker_image: greptime/greptimedb:latest
 
 greptimedb_docker_network: bridge
 greptimedb_docker_publish_ports: []
